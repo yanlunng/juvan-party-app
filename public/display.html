@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Juvan's First Birthday - Display</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  html, body { height: 100%; overflow: hidden; }
+  .display-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    height: 100vh;
+  }
+  .stage {
+    padding: 70px 24px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .postit-wall {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 18px;
+    height: 100%;
+    transition: opacity 0.5s ease;
+  }
+  .postit-wall.fade { opacity: 0; }
+  .postit {
+    border-radius: 4px;
+    padding: 14px 16px;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    font-family: 'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive, sans-serif;
+  }
+  .postit-photo {
+    width: 100%;
+    height: auto;
+    max-height: 260px;
+    object-fit: contain;
+    border-radius: 3px;
+    border: 3px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    margin-bottom: 8px;
+    flex-shrink: 0;
+    background: rgba(255,255,255,0.5);
+  }
+  .postit-msg {
+    font-size: 17px;
+    line-height: 1.28;
+    color: #3a362f;
+    flex: 1;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .postit-name {
+    font-size: 14px;
+    font-weight: 700;
+    text-align: right;
+    margin-top: 6px;
+    color: #55503f;
+    flex-shrink: 0;
+  }
+  .stage-caption {
+    font-size: 20px;
+    color: #6B7A82;
+  }
+  .stage-empty {
+    font-size: 28px;
+    color: #6B7A82;
+    text-align: center;
+    margin-top: 20%;
+  }
+  .sidebar {
+    background: var(--cream);
+    border-left: 3px solid var(--pastel-blue-deep);
+    padding: 22px 18px;
+    overflow-y: auto;
+  }
+  .sidebar h2 {
+    font-size: 20px;
+    margin: 0 0 12px;
+    text-align: center;
+  }
+  .sidebar .board-section { margin-bottom: 28px; }
+  .mini-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--white);
+    border-radius: 10px;
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    font-size: 14px;
+  }
+  .mini-row .rank { font-weight: 800; width: 22px; color: var(--gold); }
+  .mini-row .rname { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mini-row .rscore { font-weight: 800; }
+  .mini-face {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1.5px solid var(--pastel-blue-deep);
+    background: #F3E3C8;
+    flex-shrink: 0;
+  }
+  .top-banner {
+    position: absolute;
+    top: 14px; left: 0; right: 0;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #6B7A82;
+  }
+  .exit-btn {
+    position: absolute;
+    top: 12px; left: 14px;
+    z-index: 10;
+    background: rgba(255,255,255,0.6);
+    color: var(--charcoal);
+    border: 1.5px solid var(--pastel-blue-deep);
+    border-radius: 10px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+<div class="display-grid">
+  <div class="stage">
+    <a class="exit-btn" href="/admin.html">&larr; Exit</a>
+    <div class="top-banner">JUVAN'S FIRST BIRTHDAY</div>
+    <div class="postit-wall" id="postitWall">
+      <div class="stage-empty">Waiting for guestbook wishes...</div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="board-section">
+      <h2>🏁 Race Leaderboard</h2>
+      <div id="raceBoard"></div>
+    </div>
+    <div class="board-section">
+      <h2>🚗💨 Flappy Juvan</h2>
+      <div id="flappyBoard"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ROTATE_MS = 9000;
+const POLL_MS = 3000;
+const JUVAN_FACE_CANDIDATES = ['/img/juvan-face.jpg', '/img/juvan-face.jpeg', '/img/juvan-face.png'];
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : s;
+  return d.innerHTML;
+}
+
+// ---------- main stage: post-it wall of guestbook wishes ----------
+const POSTIT_COLORS = ['#FFF3B0', '#F1C3C9', '#CFE8F3', '#E8DCC6', '#C9E7C5'];
+
+let feed = [];
+let pages = [[]];
+let pageIndex = 0;
+let lastSignature = null;
+const wallEl = document.getElementById('postitWall');
+
+function hashId(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function noteWidth(item) {
+  const len = (item.message || '').length;
+  let w = len <= 30 ? 170 : len <= 80 ? 210 : len <= 160 ? 260 : 310;
+  if (item.photoUrl) w = Math.max(w, 220);
+  return w;
+}
+
+function renderNote(item) {
+  const h = hashId(item.id);
+  const color = POSTIT_COLORS[h % POSTIT_COLORS.length];
+  const rotation = (h % 9) - 4; // -4deg..4deg
+  const width = noteWidth(item);
+  return `
+    <div class="postit" style="width:${width}px; background:${color}; transform: rotate(${rotation}deg);">
+      ${item.photoUrl ? `<img class="postit-photo" src="${item.photoUrl}">` : ''}
+      <div class="postit-msg">"${escapeHtml(item.message)}"</div>
+      <div class="postit-name">— ${escapeHtml(item.name)}</div>
+    </div>
+  `;
+}
+
+// Notes vary in height (photos keep their own aspect ratio), so figure out
+// how many actually fit per page by rendering and measuring, rather than
+// assuming a uniform cell size.
+function buildPages(items) {
+  if (!items.length) return [[]];
+  const limit = wallEl.clientHeight;
+  const built = [];
+  let remaining = items.slice();
+  while (remaining.length) {
+    wallEl.innerHTML = remaining.map(renderNote).join('');
+    const children = Array.from(wallEl.children);
+    let cutoff = children.length;
+    for (let i = 0; i < children.length; i++) {
+      if (children[i].offsetTop + children[i].offsetHeight > limit + 2) { cutoff = i; break; }
+    }
+    if (cutoff === 0) cutoff = 1; // always show at least one note, even if it overflows slightly
+    built.push(remaining.slice(0, cutoff));
+    remaining = remaining.slice(cutoff);
+  }
+  return built;
+}
+
+function renderPage(page) {
+  wallEl.innerHTML = page.length
+    ? page.map(renderNote).join('')
+    : '<div class="stage-empty">Waiting for guestbook wishes...</div>';
+}
+
+async function pollFeed() {
+  try {
+    const res = await fetch('/api/guestbook');
+    feed = await res.json();
+    pages = buildPages(feed);
+    if (pageIndex >= pages.length) pageIndex = 0;
+    const signature = pageIndex + ':' + pages[pageIndex].map(i => i.id).join(',');
+    if (signature !== lastSignature) {
+      lastSignature = signature;
+      renderPage(pages[pageIndex]);
+    }
+  } catch (err) { /* ignore transient errors */ }
+}
+
+function rotateStage() {
+  if (pages.length <= 1) return;
+  pageIndex = (pageIndex + 1) % pages.length;
+  wallEl.classList.add('fade');
+  setTimeout(() => {
+    lastSignature = pageIndex + ':' + pages[pageIndex].map(i => i.id).join(',');
+    renderPage(pages[pageIndex]);
+    wallEl.classList.remove('fade');
+  }, 400);
+}
+
+// ---------- sidebar leaderboards ----------
+const MEDALS = ['🥇', '🥈', '🥉'];
+
+function renderRaceBoard(list) {
+  const board = document.getElementById('raceBoard');
+  board.innerHTML = list.slice(0, 5).map((e, i) => `
+    <div class="mini-row">
+      <div class="rank">${MEDALS[i] || (i + 1)}</div>
+      <div class="rname">${escapeHtml(e.name)}</div>
+      <div class="rscore">${e.taps}</div>
+    </div>
+  `).join('') || '<div class="stage-caption" style="font-size:13px;">No racers yet</div>';
+}
+
+function faceImgTag(url) {
+  const chain = url ? [url, ...JUVAN_FACE_CANDIDATES] : [...JUVAN_FACE_CANDIDATES];
+  const attr = chain.map(escapeHtml).join('|');
+  return `<img class="mini-face" data-fallback="${attr}" src="${chain[0]}" onerror="miniFaceError(this)">`;
+}
+
+function miniFaceError(img) {
+  const chain = img.dataset.fallback.split('|');
+  const idx = chain.indexOf(img.getAttribute('src')) + 1;
+  if (idx < chain.length) {
+    img.src = chain[idx];
+  } else {
+    img.outerHTML = '<div class="mini-face" style="display:flex;align-items:center;justify-content:center;">👶</div>';
+  }
+}
+
+function renderFlappyBoard(list) {
+  const board = document.getElementById('flappyBoard');
+  board.innerHTML = list.slice(0, 5).map((e, i) => `
+    <div class="mini-row">
+      <div class="rank">${MEDALS[i] || (i + 1)}</div>
+      ${faceImgTag(e.faceUrl)}
+      <div class="rname">${escapeHtml(e.name)}</div>
+      <div class="rscore">${e.score}</div>
+    </div>
+  `).join('') || '<div class="stage-caption" style="font-size:13px;">No flights yet</div>';
+}
+
+async function pollBoards() {
+  try {
+    const [raceRes, flapRes] = await Promise.all([
+      fetch('/api/race/leaderboard'),
+      fetch('/api/flappy/leaderboard'),
+    ]);
+    renderRaceBoard(await raceRes.json());
+    renderFlappyBoard(await flapRes.json());
+  } catch (err) { /* ignore transient errors */ }
+}
+
+pollFeed();
+pollBoards();
+setInterval(pollFeed, POLL_MS);
+setInterval(pollBoards, POLL_MS);
+setInterval(rotateStage, ROTATE_MS);
+window.addEventListener('resize', () => { lastSignature = null; pollFeed(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Guestbook - Juvan's Birthday</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>💌 Guestbook</h1>
+  <div class="subtitle">Leave a message for Juvan!</div>
+
+  <div class="card">
+    <form id="gbForm">
+      <input type="text" name="name" id="name" placeholder="Your name" required>
+      <textarea name="message" id="message" placeholder="Write your message for Juvan..." required></textarea>
+      <label class="file-input-label" id="fileLabel">📷 Optional: attach a photo
+        <input type="file" name="photo" id="photo" accept="image/*" style="display:none">
+      </label>
+      <button type="submit">Send Message</button>
+    </form>
+  </div>
+
+  <div id="status" class="result-box" style="display:none;"></div>
+
+  <div class="subtitle" style="margin-top:24px;"><a href="/">&larr; Back to home</a></div>
+</div>
+
+<script>
+const form = document.getElementById('gbForm');
+const fileInput = document.getElementById('photo');
+const fileLabel = document.getElementById('fileLabel');
+const statusBox = document.getElementById('status');
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) {
+    fileLabel.textContent = '✅ ' + fileInput.files[0].name;
+  }
+});
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = form.querySelector('button');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const payload = {
+      name: document.getElementById('name').value,
+      message: document.getElementById('message').value,
+    };
+    if (fileInput.files.length) {
+      payload.photoDataUrl = await fileToDataUrl(fileInput.files[0]);
+    }
+    const res = await fetch('/api/guestbook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('failed');
+    statusBox.style.display = 'block';
+    statusBox.textContent = '🎉 Thanks! Your message is on the wall.';
+    form.reset();
+    fileLabel.textContent = '📷 Optional: attach a photo';
+  } catch (err) {
+    statusBox.style.display = 'block';
+    statusBox.textContent = '⚠️ Something went wrong, please try again.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Message';
+  }
+});
+</script>
+</body>
+</html>

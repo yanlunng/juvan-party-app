@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guestbook Wall</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap-wide">
+  <div class="big-title">💌 Messages for Juvan</div>
+  <div id="feed" class="grid"></div>
+</div>
+
+<script>
+const feed = document.getElementById('feed');
+let lastIds = '';
+
+function renderEntry(e) {
+  const div = document.createElement('div');
+  div.className = 'entry';
+  div.innerHTML = `
+    <div class="name">${escapeHtml(e.name)}</div>
+    <div class="msg">${escapeHtml(e.message)}</div>
+    ${e.photoUrl ? `<img src="${e.photoUrl}">` : ''}
+    <div class="time">${new Date(e.ts).toLocaleTimeString()}</div>
+  `;
+  return div;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function poll() {
+  try {
+    const res = await fetch('/api/guestbook');
+    const entries = await res.json();
+    const ids = entries.map(e => e.id).join(',');
+    if (ids !== lastIds) {
+      lastIds = ids;
+      feed.innerHTML = '';
+      entries.forEach(e => feed.appendChild(renderEntry(e)));
+    }
+  } catch (err) { /* ignore transient errors */ }
+}
+
+poll();
+setInterval(poll, 2500);
+</script>
+</body>
+</html>

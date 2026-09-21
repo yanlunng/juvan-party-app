@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Race Leaderboard</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap-wide">
+  <div class="big-title">🏆 Race Leaderboard</div>
+  <div id="board"></div>
+  <div class="subtitle" style="margin-top:20px;"><a href="/">&larr; Back to home</a></div>
+</div>
+
+<script>
+const board = document.getElementById('board');
+const medals = ['🥇', '🥈', '🥉'];
+
+function render(list) {
+  board.innerHTML = '';
+  list.forEach((entry, i) => {
+    const row = document.createElement('div');
+    row.className = 'leaderboard-row';
+    row.innerHTML = `
+      <div class="rank">${medals[i] || (i + 1)}</div>
+      <div class="rname">${escapeHtml(entry.name)}</div>
+      <div class="rtaps">${entry.taps} taps</div>
+    `;
+    board.appendChild(row);
+  });
+  if (!list.length) {
+    board.innerHTML = '<div class="subtitle">No racers yet — be the first!</div>';
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function poll() {
+  try {
+    const res = await fetch('/api/race/leaderboard');
+    render(await res.json());
+  } catch (err) { /* ignore transient errors */ }
+}
+
+poll();
+setInterval(poll, 2000);
+</script>
+</body>
+</html>

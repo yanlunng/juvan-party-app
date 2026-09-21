@@ -1,0 +1,5 @@
+uploads/*
+data/store.json
+.DS_Store
+__pycache__/
+*.pyc

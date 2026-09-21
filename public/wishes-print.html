@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guestbook Wishes - Juvan's Birthday</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .print-wrap { max-width: 700px; margin: 0 auto; padding: 24px; }
+  .print-header { text-align: center; margin-bottom: 24px; }
+  .print-header h1 { font-size: 26px; margin-bottom: 4px; }
+  .print-header .sub { color: #6B7A82; font-size: 14px; }
+  .wish-entry {
+    border: 1.5px solid var(--pastel-blue-deep);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    background: var(--cream);
+    page-break-inside: avoid;
+  }
+  .wish-entry .name { font-weight: 800; font-size: 15px; }
+  .wish-entry .time { font-size: 11px; color: #9CA6AC; margin-bottom: 8px; }
+  .wish-entry .msg { font-size: 14px; margin-bottom: 8px; }
+  .wish-entry img { max-width: 240px; max-height: 240px; border-radius: 8px; display: block; }
+  .no-print { text-align: center; margin-bottom: 24px; }
+  .empty-msg { text-align: center; color: #6B7A82; margin-top: 40px; }
+
+  @media print {
+    body { background: white; }
+    .no-print { display: none; }
+    .wish-entry { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="print-wrap">
+  <div class="no-print">
+    <button id="printBtn">🖨️ Print / Save as PDF</button>
+    <p style="font-size:13px; color:#6B7A82; margin-top:8px;">
+      Tip: in the print dialog, choose "Save as PDF" as the destination.
+    </p>
+  </div>
+
+  <div class="print-header">
+    <h1>💌 Guestbook Wishes for Juvan</h1>
+    <div class="sub" id="exportedAt"></div>
+  </div>
+
+  <div id="entries"></div>
+</div>
+
+<script>
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : s;
+  return d.innerHTML;
+}
+
+document.getElementById('exportedAt').textContent = 'Exported ' + new Date().toLocaleString();
+
+document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+async function load() {
+  const container = document.getElementById('entries');
+  try {
+    const res = await fetch('/api/guestbook');
+    const entries = await res.json();
+    if (!entries.length) {
+      container.innerHTML = '<div class="empty-msg">No wishes yet.</div>';
+      return;
+    }
+    // oldest first, reads like a timeline
+    entries.sort((a, b) => a.ts - b.ts);
+    container.innerHTML = entries.map(e => `
+      <div class="wish-entry">
+        <div class="name">${escapeHtml(e.name)}</div>
+        <div class="time">${new Date(e.ts).toLocaleString()}</div>
+        <div class="msg">${escapeHtml(e.message)}</div>
+        ${e.photoUrl ? `<img src="${e.photoUrl}">` : ''}
+      </div>
+    `).join('');
+  } catch (err) {
+    container.innerHTML = '<div class="empty-msg">Failed to load wishes.</div>';
+  }
+}
+
+load();
+</script>
+</body>
+</html>

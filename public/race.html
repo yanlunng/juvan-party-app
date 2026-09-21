@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Tap-to-Race - Juvan's Birthday</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>🏁 Tap-to-Race</h1>
+  <div class="subtitle">Rev your engine as fast as you can for 10 seconds!</div>
+
+  <div id="setup" class="card">
+    <input type="text" id="name" placeholder="Your name" required>
+    <button id="startBtn">Start Race</button>
+  </div>
+
+  <div id="game" class="card" style="display:none;">
+    <div class="timer" id="timer">10</div>
+    <div class="track">
+      <div class="car" id="car">🚗</div>
+      <div class="finish"></div>
+    </div>
+    <div class="tap-count" id="tapCount">0 taps</div>
+    <div class="tap-btn btn pink" id="tapBtn">TAP! 🔥</div>
+  </div>
+
+  <div id="result" class="card" style="display:none;">
+    <div class="result-box" id="resultText"></div>
+    <a class="btn secondary" href="/race-leaderboard.html">View Leaderboard</a>
+    <button id="againBtn" class="secondary" style="margin-top:10px;">Race Again</button>
+  </div>
+
+  <div class="subtitle" style="margin-top:24px;"><a href="/">&larr; Back to home</a></div>
+</div>
+
+<script>
+const RACE_MS = 10000;
+const COUNTDOWN_STEPS = ['3', '2', '1', 'GO!'];
+
+const setupBox = document.getElementById('setup');
+const gameBox = document.getElementById('game');
+const resultBox = document.getElementById('result');
+const nameInput = document.getElementById('name');
+const startBtn = document.getElementById('startBtn');
+const timerEl = document.getElementById('timer');
+const tapBtn = document.getElementById('tapBtn');
+const tapCountEl = document.getElementById('tapCount');
+const carEl = document.getElementById('car');
+const resultText = document.getElementById('resultText');
+const againBtn = document.getElementById('againBtn');
+
+let raceId = null;
+let taps = 0;
+let raceEndAt = 0;
+let tickHandle = null;
+
+function trackWidth() {
+  return document.querySelector('.track').clientWidth - 46;
+}
+
+startBtn.addEventListener('click', async () => {
+  if (!nameInput.value.trim()) { nameInput.focus(); return; }
+  startBtn.disabled = true;
+  startBtn.textContent = 'Get ready...';
+
+  const res = await fetch('/api/race/start', { method: 'POST' });
+  const data = await res.json();
+  raceId = data.raceId;
+
+  for (const step of COUNTDOWN_STEPS) {
+    startBtn.textContent = step;
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  setupBox.style.display = 'none';
+  gameBox.style.display = 'block';
+  taps = 0;
+  tapCountEl.textContent = '0 taps';
+  carEl.style.left = '6px';
+  raceEndAt = Date.now() + RACE_MS;
+  tickHandle = setInterval(tick, 100);
+  tick();
+});
+
+function tick() {
+  const remaining = Math.max(0, raceEndAt - Date.now());
+  timerEl.textContent = (remaining / 1000).toFixed(1);
+  if (remaining <= 0) {
+    clearInterval(tickHandle);
+    finishRace();
+  }
+}
+
+function onTap() {
+  if (Date.now() >= raceEndAt) return;
+  taps++;
+  tapCountEl.textContent = taps + ' taps';
+  const progress = Math.min(1, taps / 60);
+  carEl.style.left = (6 + progress * trackWidth()) + 'px';
+}
+
+tapBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); onTap(); });
+
+async function finishRace() {
+  gameBox.style.display = 'none';
+  resultBox.style.display = 'block';
+  resultText.textContent = 'Submitting your score...';
+
+  try {
+    const res = await fetch('/api/race/finish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raceId, taps, name: nameInput.value.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'failed');
+    resultText.textContent = `🏆 ${data.entry.name}: ${data.entry.taps} taps!`;
+  } catch (err) {
+    resultText.textContent = '⚠️ ' + (err.message || 'Something went wrong.');
+  }
+}
+
+againBtn.addEventListener('click', () => {
+  resultBox.style.display = 'none';
+  setupBox.style.display = 'block';
+  startBtn.disabled = false;
+  startBtn.textContent = 'Start Race';
+});
+</script>
+</body>
+</html>

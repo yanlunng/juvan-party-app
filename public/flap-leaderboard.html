@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flappy Juvan Leaderboard</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap-wide">
+  <div class="big-title">🚗💨 Flappy Juvan Leaderboard</div>
+  <div id="board"></div>
+  <div class="subtitle" style="margin-top:20px;"><a href="/">&larr; Back to home</a></div>
+</div>
+
+<script>
+const board = document.getElementById('board');
+const medals = ['🥇', '🥈', '🥉'];
+
+function render(list) {
+  board.innerHTML = '';
+  list.forEach((entry, i) => {
+    const row = document.createElement('div');
+    row.className = 'leaderboard-row';
+    row.innerHTML = `
+      <div class="rank">${medals[i] || (i + 1)}</div>
+      ${faceHtml(entry.faceUrl)}
+      <div class="rname">${escapeHtml(entry.name)}</div>
+      <div class="rtaps">${entry.score} pts</div>
+    `;
+    board.appendChild(row);
+  });
+  if (!list.length) {
+    board.innerHTML = '<div class="subtitle">No flights yet — be the first!</div>';
+  }
+}
+
+const JUVAN_FACE_CANDIDATES = ['/img/juvan-face.jpg', '/img/juvan-face.jpeg', '/img/juvan-face.png'];
+
+function faceHtml(url) {
+  const chain = url ? [url, ...JUVAN_FACE_CANDIDATES] : [...JUVAN_FACE_CANDIDATES];
+  const attr = chain.map(escapeHtml).join('|');
+  return `<img class="face-thumb" data-fallback="${attr}" src="${chain[0]}" onerror="faceImgError(this)">`;
+}
+
+function faceImgError(img) {
+  const chain = img.dataset.fallback.split('|');
+  const idx = chain.indexOf(img.getAttribute('src')) + 1;
+  if (idx < chain.length) {
+    img.src = chain[idx];
+  } else {
+    img.outerHTML = '<div class="face-thumb-fallback">👶</div>';
+  }
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function poll() {
+  try {
+    const res = await fetch('/api/flappy/leaderboard');
+    render(await res.json());
+  } catch (err) { /* ignore transient errors */ }
+}
+
+poll();
+setInterval(poll, 2000);
+</script>
+</body>
+</html>

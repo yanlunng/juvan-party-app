@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Flappy Juvan - Juvan's Birthday</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .game-wrap { max-width: 420px; margin: 0 auto; padding: 16px; }
+  #gameCanvas {
+    width: 100%;
+    aspect-ratio: 9/14;
+    border-radius: 18px;
+    border: 3px solid var(--pastel-blue-deep);
+    display: block;
+    touch-action: manipulation;
+  }
+  .score-badge {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 800;
+    margin: 10px 0;
+  }
+  #overlay {
+    position: relative;
+  }
+  .overlay-card {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--cream);
+    border: 2px solid var(--pastel-blue-deep);
+    border-radius: 16px;
+    padding: 18px;
+    width: 82%;
+    text-align: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+  }
+  .overlay-card h2 { margin: 4px 0 10px; font-size: 20px; }
+  .overlay-card p { font-size: 13px; color: #6B7A82; margin-bottom: 14px; }
+
+  .face-preview {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    border: 3px solid var(--pastel-blue-deep);
+    margin: 0 auto 12px;
+    object-fit: cover;
+    display: block;
+    background: #F3E3C8;
+  }
+  .face-choice-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .face-choice-row button {
+    flex: 1;
+    font-size: 13px;
+    padding: 10px 6px;
+  }
+  .face-choice-row button.active {
+    background: var(--gold);
+    color: #3a2c0f;
+  }
+
+  #cropCanvas {
+    width: 220px; height: 220px;
+    border-radius: 50%;
+    border: 3px solid var(--pastel-blue-deep);
+    margin: 0 auto 14px;
+    display: block;
+    touch-action: none;
+    cursor: grab;
+    background: #F3E3C8;
+  }
+  .zoom-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .zoom-row span { font-size: 18px; }
+  .zoom-row input[type=range] { flex: 1; }
+  .crop-btn-row {
+    display: flex;
+    gap: 8px;
+  }
+  .crop-btn-row button { flex: 1; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="game-wrap">
+  <h1 style="font-size:22px;">🚗💨 Flappy Juvan</h1>
+  <div class="subtitle">Tap to keep the car flying through the gaps!</div>
+
+  <div class="score-badge" id="scoreBadge">Score: 0</div>
+
+  <div id="overlay">
+    <canvas id="gameCanvas" width="360" height="560"></canvas>
+
+    <div class="overlay-card" id="startCard">
+      <h2>Ready to fly?</h2>
+      <img id="facePreview" class="face-preview" alt="face preview">
+      <div class="face-choice-row">
+        <button type="button" id="useJuvanBtn" class="secondary active">🍼 Juvan's Face</button>
+        <button type="button" id="selfieBtn" class="secondary">🤳 My Selfie</button>
+      </div>
+      <input type="file" id="selfieInput" accept="image/*" capture="user" style="display:none">
+      <p>Tap/click anywhere on the track to flap. Avoid the checkered pillars!</p>
+      <input type="text" id="nameInput" placeholder="Your name" style="margin-bottom:10px;">
+      <button id="startBtn" class="pink">Start</button>
+    </div>
+
+    <div class="overlay-card" id="cropCard" style="display:none;">
+      <h2>Position your photo</h2>
+      <canvas id="cropCanvas" width="300" height="300"></canvas>
+      <div class="zoom-row">
+        <span>🔍</span>
+        <input type="range" id="zoomSlider" min="1" max="3" step="0.01" value="1">
+      </div>
+      <p style="margin-bottom:10px;">Drag to reposition, use the slider to zoom.</p>
+      <div class="crop-btn-row">
+        <button type="button" id="retakeBtn" class="secondary">Choose Different Photo</button>
+        <button type="button" id="confirmCropBtn" class="pink">Use This Photo</button>
+      </div>
+      <p style="margin-top:10px; margin-bottom:0;"><a href="#" id="cancelCropLink">Cancel</a></p>
+    </div>
+
+    <div class="overlay-card" id="overCard" style="display:none;">
+      <h2 id="overTitle">Crashed!</h2>
+      <p id="overScore"></p>
+      <button id="submitBtn">Save Score</button>
+      <button id="retryBtn" class="secondary" style="margin-top:8px;">Try Again</button>
+    </div>
+  </div>
+
+  <div class="subtitle" style="margin-top:16px;">
+    <a href="/flap-leaderboard.html">View Leaderboard</a> &nbsp;|&nbsp; <a href="/">Back to home</a>
+  </div>
+</div>
+
+<script>
+const COLORS = {
+  sky: '#CFE8F3',
+  skyDeep: '#A9D3E8',
+  beige: '#E8DCC6',
+  beigeDark: '#D5C3A1',
+  cream: '#FBF7EF',
+  charcoal: '#4A4742',
+  pink: '#F1C3C9',
+  gold: '#D9B266',
+};
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const GROUND_H = 36;
+
+const GRAVITY = 0.32;
+const FLAP_VELOCITY = -6.2;
+const PILLAR_W = 58;
+const GAP_H = 150;
+const PILLAR_SPEED = 2.4;
+const SPAWN_EVERY_FRAMES = 95;
+
+let car, pillars, frame, score, running, gameOverAt;
+
+function resetGame() {
+  car = { x: 70, y: H / 2, vy: 0, radius: 24, rotation: 0 };
+  pillars = [];
+  frame = 0;
+  score = 0;
+  running = false;
+  gameOverAt = null;
+  updateScoreBadge();
+}
+resetGame();
+
+// ---------- face image (Juvan's real photo if present, else a drawn placeholder) ----------
+let defaultFaceImg = null;
+let defaultFaceReady = false;
+const FACE_CANDIDATES = ['/img/juvan-face.jpg', '/img/juvan-face.jpeg', '/img/juvan-face.png'];
+
+(function loadDefaultFace() {
+  let i = 0;
+  function tryNext() {
+    if (i >= FACE_CANDIDATES.length) { defaultFaceReady = false; return; }
+    const img = new Image();
+    img.onload = () => { defaultFaceImg = img; defaultFaceReady = true; updateFacePreview(); };
+    img.onerror = () => { i++; tryNext(); };
+    img.src = FACE_CANDIDATES[i];
+  }
+  tryNext();
+})();
+
+// ---------- selfie / face selection ----------
+let useSelfie = false;
+let selfieImg = null;
+let selfieDataUrl = null;
+
+const facePreviewEl = document.getElementById('facePreview');
+const useJuvanBtn = document.getElementById('useJuvanBtn');
+const selfieBtn = document.getElementById('selfieBtn');
+const selfieInput = document.getElementById('selfieInput');
+
+function updateFacePreview() {
+  if (useSelfie && selfieDataUrl) {
+    facePreviewEl.src = selfieDataUrl;
+  } else if (defaultFaceReady) {
+    facePreviewEl.src = defaultFaceImg.src;
+  } else {
+    facePreviewEl.removeAttribute('src');
+  }
+}
+updateFacePreview();
+
+useJuvanBtn.addEventListener('click', () => {
+  useSelfie = false;
+  useJuvanBtn.classList.add('active');
+  selfieBtn.classList.remove('active');
+  updateFacePreview();
+});
+
+selfieBtn.addEventListener('click', () => {
+  selfieInput.click();
+});
+
+selfieInput.addEventListener('change', () => {
+  const file = selfieInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => openCropper(reader.result);
+  reader.readAsDataURL(file);
+  selfieInput.value = ''; // allow picking the same file again
+});
+
+// ---------- crop / zoom / pan UI for the selfie ----------
+const startCardEl = document.getElementById('startCard');
+const cropCardEl = document.getElementById('cropCard');
+const cropCanvas = document.getElementById('cropCanvas');
+const cropCtx = cropCanvas.getContext('2d');
+const zoomSlider = document.getElementById('zoomSlider');
+const CROP_SIZE = cropCanvas.width; // 300
+const OUTPUT_SIZE = 400;
+
+let cropImg = null;
+let cropBaseScale = 1;
+let cropScale = 1;
+let cropOffsetX = 0;
+let cropOffsetY = 0;
+
+function openCropper(dataUrl) {
+  const img = new Image();
+  img.onload = () => {
+    cropImg = img;
+    cropBaseScale = CROP_SIZE / Math.min(img.width, img.height);
+    cropScale = cropBaseScale;
+    zoomSlider.value = 1;
+    cropOffsetX = (CROP_SIZE - img.width * cropScale) / 2;
+    cropOffsetY = (CROP_SIZE - img.height * cropScale) / 2;
+    startCardEl.style.display = 'none';
+    cropCardEl.style.display = 'block';
+    drawCropper();
+  };
+  img.src = dataUrl;
+}
+
+function clampCropOffsets() {
+  const dw = cropImg.width * cropScale;
+  const dh = cropImg.height * cropScale;
+  cropOffsetX = Math.min(0, Math.max(CROP_SIZE - dw, cropOffsetX));
+  cropOffsetY = Math.min(0, Math.max(CROP_SIZE - dh, cropOffsetY));
+}
+
+function drawCropper() {
+  cropCtx.clearRect(0, 0, CROP_SIZE, CROP_SIZE);
+  const dw = cropImg.width * cropScale;
+  const dh = cropImg.height * cropScale;
+  cropCtx.drawImage(cropImg, cropOffsetX, cropOffsetY, dw, dh);
+}
+
+zoomSlider.addEventListener('input', () => {
+  const newScale = cropBaseScale * parseFloat(zoomSlider.value);
+  // keep the point currently at the canvas center anchored while zooming
+  const cx = CROP_SIZE / 2, cy = CROP_SIZE / 2;
+  const relX = (cx - cropOffsetX) / cropScale;
+  const relY = (cy - cropOffsetY) / cropScale;
+  cropScale = newScale;
+  cropOffsetX = cx - relX * cropScale;
+  cropOffsetY = cy - relY * cropScale;
+  clampCropOffsets();
+  drawCropper();
+});
+
+let dragging = false, lastX = 0, lastY = 0;
+cropCanvas.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  lastX = e.clientX; lastY = e.clientY;
+  cropCanvas.style.cursor = 'grabbing';
+});
+window.addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  // canvas is displayed at 220px but backed by a 300px buffer - scale the drag delta to match
+  const displayScale = CROP_SIZE / cropCanvas.clientWidth;
+  cropOffsetX += dx * displayScale;
+  cropOffsetY += dy * displayScale;
+  clampCropOffsets();
+  drawCropper();
+});
+window.addEventListener('pointerup', () => {
+  dragging = false;
+  cropCanvas.style.cursor = 'grab';
+});
+
+document.getElementById('retakeBtn').addEventListener('click', () => {
+  selfieInput.click();
+});
+
+document.getElementById('cancelCropLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  cropCardEl.style.display = 'none';
+  startCardEl.style.display = 'block';
+});
+
+document.getElementById('confirmCropBtn').addEventListener('click', () => {
+  const out = document.createElement('canvas');
+  out.width = OUTPUT_SIZE;
+  out.height = OUTPUT_SIZE;
+  const outCtx = out.getContext('2d');
+  const ratio = OUTPUT_SIZE / CROP_SIZE;
+  outCtx.drawImage(
+    cropImg,
+    cropOffsetX * ratio, cropOffsetY * ratio,
+    cropImg.width * cropScale * ratio, cropImg.height * cropScale * ratio
+  );
+  selfieDataUrl = out.toDataURL('image/jpeg', 0.9);
+  const finalImg = new Image();
+  finalImg.onload = () => {
+    selfieImg = finalImg;
+    useSelfie = true;
+    useJuvanBtn.classList.remove('active');
+    selfieBtn.classList.add('active');
+    updateFacePreview();
+    cropCardEl.style.display = 'none';
+    startCardEl.style.display = 'block';
+  };
+  finalImg.src = selfieDataUrl;
+});
+
+function currentFaceImg() {
+  if (useSelfie && selfieImg) return selfieImg;
+  if (defaultFaceReady) return defaultFaceImg;
+  return null;
+}
+
+function drawPlaceholderFace(cx, cy, r) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = '#F3E3C8';
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  // eyes
+  ctx.fillStyle = COLORS.charcoal;
+  ctx.beginPath(); ctx.arc(cx - r * 0.35, cy - r * 0.05, r * 0.09, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cx + r * 0.35, cy - r * 0.05, r * 0.09, 0, Math.PI * 2); ctx.fill();
+  // smile
+  ctx.beginPath();
+  ctx.arc(cx, cy + r * 0.15, r * 0.35, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.strokeStyle = COLORS.charcoal;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // hair wisp
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.1, cy - r * 0.85);
+  ctx.quadraticCurveTo(cx, cy - r * 1.25, cx + r * 0.15, cy - r * 0.8);
+  ctx.strokeStyle = '#8a6a3a';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawCar(x, y, rotation) {
+  const s = car.radius * 1.9;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+
+  // body
+  ctx.fillStyle = COLORS.skyDeep;
+  roundRect(-s * 0.6, -s * 0.28, s * 1.2, s * 0.5, s * 0.22);
+  ctx.fill();
+
+  // cabin
+  ctx.fillStyle = COLORS.pink;
+  roundRect(-s * 0.34, -s * 0.62, s * 0.68, s * 0.56, s * 0.22);
+  ctx.fill();
+
+  // wheels
+  ctx.fillStyle = COLORS.charcoal;
+  ctx.beginPath(); ctx.arc(-s * 0.36, s * 0.24, s * 0.13, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(s * 0.36, s * 0.24, s * 0.13, 0, Math.PI * 2); ctx.fill();
+
+  // little exhaust puffs when flapping up
+  ctx.restore();
+
+  // face (drawn unrotated so it always reads correctly)
+  const faceR = s * 0.36;
+  const faceX = x - s * 0.02;
+  const faceY = y - s * 0.34;
+  const activeFace = currentFaceImg();
+  if (activeFace) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(faceX, faceY, faceR, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(activeFace, faceX - faceR, faceY - faceR, faceR * 2, faceR * 2);
+    ctx.restore();
+  } else {
+    drawPlaceholderFace(faceX, faceY, faceR);
+  }
+  ctx.strokeStyle = COLORS.charcoal;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(faceX, faceY, faceR, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawPillarCap(x, y, w, h, flip) {
+  ctx.fillStyle = COLORS.beige;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = COLORS.beigeDark;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(x, y, w, h);
+  // checkered cap band
+  const bandH = 14;
+  const bandY = flip ? y + h - bandH : y;
+  const cols = Math.round(w / 10);
+  for (let c = 0; c < cols; c++) {
+    if (c % 2 === 0) {
+      ctx.fillStyle = COLORS.charcoal;
+      ctx.fillRect(x + c * (w / cols), bandY, w / cols, bandH);
+    }
+  }
+}
+
+function spawnPillar() {
+  const margin = 60;
+  const gapY = margin + Math.random() * (H - GROUND_H - margin * 2 - GAP_H) + GAP_H / 2;
+  pillars.push({ x: W + PILLAR_W, gapY, passed: false });
+}
+
+function update() {
+  frame++;
+  car.vy += GRAVITY;
+  car.y += car.vy;
+  car.rotation = Math.max(-0.5, Math.min(0.9, car.vy / 12));
+
+  if (frame % SPAWN_EVERY_FRAMES === 0) spawnPillar();
+
+  for (const p of pillars) {
+    p.x -= PILLAR_SPEED;
+    if (!p.passed && p.x + PILLAR_W < car.x) {
+      p.passed = true;
+      score++;
+      updateScoreBadge();
+    }
+  }
+  while (pillars.length && pillars[0].x < -PILLAR_W) pillars.shift();
+
+  // collisions
+  if (car.y + car.radius > H - GROUND_H || car.y - car.radius < 0) {
+    return endGame();
+  }
+  for (const p of pillars) {
+    const withinX = car.x + car.radius > p.x && car.x - car.radius < p.x + PILLAR_W;
+    if (!withinX) continue;
+    const topEnd = p.gapY - GAP_H / 2;
+    const botStart = p.gapY + GAP_H / 2;
+    if (car.y - car.radius < topEnd || car.y + car.radius > botStart) {
+      return endGame();
+    }
+  }
+}
+
+function updateScoreBadge() {
+  document.getElementById('scoreBadge').textContent = 'Score: ' + score;
+}
+
+function draw() {
+  // sky
+  ctx.fillStyle = COLORS.sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // pillars
+  for (const p of pillars) {
+    const topH = p.gapY - GAP_H / 2;
+    drawPillarCap(p.x, 0, PILLAR_W, topH, false);
+    drawPillarCap(p.x, p.gapY + GAP_H / 2, PILLAR_W, H - GROUND_H - (p.gapY + GAP_H / 2), true);
+  }
+
+  // ground
+  ctx.fillStyle = COLORS.skyDeep;
+  ctx.fillRect(0, H - GROUND_H, W, GROUND_H);
+  ctx.strokeStyle = COLORS.cream;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([14, 10]);
+  ctx.beginPath();
+  ctx.moveTo(0, H - GROUND_H / 2);
+  ctx.lineTo(W, H - GROUND_H / 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  drawCar(car.x, car.y, car.rotation);
+}
+
+function loop() {
+  if (!running) return;
+  update();
+  draw();
+  if (running) requestAnimationFrame(loop);
+}
+
+function flap() {
+  if (!running) return;
+  car.vy = FLAP_VELOCITY;
+}
+
+function endGame() {
+  running = false;
+  gameOverAt = Date.now();
+  document.getElementById('overTitle').textContent = score > 0 ? 'Nice flying!' : 'Crashed!';
+  document.getElementById('overScore').textContent = `Final score: ${score}`;
+  document.getElementById('overCard').style.display = 'block';
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('submitBtn').textContent = 'Save Score';
+}
+
+canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); flap(); });
+document.addEventListener('keydown', (e) => { if (e.code === 'Space') flap(); });
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('startCard').style.display = 'none';
+  resetGame();
+  running = true;
+  draw();
+  requestAnimationFrame(loop);
+});
+
+document.getElementById('retryBtn').addEventListener('click', () => {
+  document.getElementById('overCard').style.display = 'none';
+  resetGame();
+  running = true;
+  draw();
+  requestAnimationFrame(loop);
+});
+
+document.getElementById('submitBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  const name = document.getElementById('nameInput').value.trim() || 'Player';
+  const payload = { name, score };
+  if (useSelfie && selfieDataUrl) payload.faceDataUrl = selfieDataUrl;
+  try {
+    await fetch('/api/flappy/score', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    btn.textContent = 'Saved!';
+  } catch (err) {
+    btn.textContent = 'Failed - tap to retry';
+    btn.disabled = false;
+  }
+});
+
+draw();
+</script>
+</body>
+</html>

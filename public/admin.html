@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin - Juvan's Birthday</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1 style="font-size:24px;">🔒 Admin</h1>
+  <div class="subtitle">For Yan &amp; wife only</div>
+
+  <div class="card" id="loginCard">
+    <input type="password" id="password" placeholder="Admin password" autocomplete="current-password">
+    <button id="loginBtn">Log In</button>
+    <div id="loginStatus" style="margin-top:10px; font-size:13px; color:#b04a4a;"></div>
+  </div>
+
+  <div class="card" id="adminCard" style="display:none;">
+    <div style="margin-bottom:14px; font-weight:700;">✅ Logged in as admin</div>
+
+    <a class="btn gold" href="/display.html" style="margin-bottom:8px; display:block;">🎬 Open Party Display</a>
+    <a class="btn secondary" href="/wishes-print.html" target="_blank" style="margin-bottom:16px; display:block;">📄 Download Wishes as PDF</a>
+
+    <button id="resetGuestbookBtn" class="secondary" style="margin-bottom:8px;">Reset Guestbook Wishes</button>
+    <button id="resetRaceBtn" class="secondary" style="margin-bottom:8px;">Reset Race Leaderboard</button>
+    <button id="resetFlappyBtn" class="secondary" style="margin-bottom:8px;">Reset Flappy Juvan Leaderboard</button>
+    <button id="resetAllBtn" class="pink" style="margin-bottom:8px;">Reset Everything (new session)</button>
+    <button id="logoutBtn" class="secondary">Log Out</button>
+
+    <div id="actionStatus" style="margin-top:12px; font-size:14px; text-align:center;"></div>
+  </div>
+
+  <div class="subtitle" style="margin-top:24px;"><a href="/">&larr; Back to home</a></div>
+</div>
+
+<script>
+const loginCard = document.getElementById('loginCard');
+const adminCard = document.getElementById('adminCard');
+const loginStatus = document.getElementById('loginStatus');
+const actionStatus = document.getElementById('actionStatus');
+
+function getToken() { return localStorage.getItem('adminToken'); }
+function setToken(t) { localStorage.setItem('adminToken', t); }
+function clearToken() { localStorage.removeItem('adminToken'); }
+
+function showAdmin() {
+  loginCard.style.display = 'none';
+  adminCard.style.display = 'block';
+}
+function showLogin() {
+  loginCard.style.display = 'block';
+  adminCard.style.display = 'none';
+}
+
+async function verifyToken() {
+  const token = getToken();
+  if (!token) return showLogin();
+  try {
+    const res = await fetch('/api/admin/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json();
+    if (data.ok) showAdmin(); else { clearToken(); showLogin(); }
+  } catch (err) {
+    showLogin();
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const password = document.getElementById('password').value;
+  loginStatus.textContent = '';
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await res.json();
+    if (!res.ok) { loginStatus.textContent = data.error || 'Login failed'; return; }
+    setToken(data.token);
+    showAdmin();
+  } catch (err) {
+    loginStatus.textContent = 'Something went wrong, try again.';
+  }
+});
+
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  const token = getToken();
+  clearToken();
+  showLogin();
+  try {
+    await fetch('/api/admin/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+  } catch (err) { /* ignore */ }
+});
+
+async function doReset(what, label, extraWarning) {
+  let msg = `Reset ${label}? This can't be undone.`;
+  if (extraWarning) msg += `\n\n⚠️ ${extraWarning}`;
+  if (!confirm(msg)) return;
+  actionStatus.textContent = 'Working...';
+  try {
+    const res = await fetch('/api/admin/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: getToken(), what }),
+    });
+    const data = await res.json();
+    if (!res.ok) { actionStatus.textContent = '⚠️ ' + (data.error || 'Failed'); return; }
+    actionStatus.textContent = `✅ ${label} reset.`;
+  } catch (err) {
+    actionStatus.textContent = '⚠️ Something went wrong.';
+  }
+}
+
+const WISHES_WARNING = 'This will permanently delete all guestbook wishes and photos. Download the PDF first if you want to keep them!';
+
+document.getElementById('resetGuestbookBtn').addEventListener('click', () => doReset('guestbook', 'Guestbook wishes', WISHES_WARNING));
+document.getElementById('resetRaceBtn').addEventListener('click', () => doReset('scores', 'Race leaderboard'));
+document.getElementById('resetFlappyBtn').addEventListener('click', () => doReset('flappy_scores', 'Flappy Juvan leaderboard'));
+document.getElementById('resetAllBtn').addEventListener('click', () => doReset('all', 'Everything', WISHES_WARNING));
+
+verifyToken();
+</script>
+</body>
+</html>

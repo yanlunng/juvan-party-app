@@ -1,0 +1,20 @@
+[Unit]
+Description=Juvan's Birthday Party App
+After=network.target
+
+[Service]
+Type=simple
+User=partyapp
+Group=partyapp
+WorkingDirectory=/opt/juvan-party-app
+EnvironmentFile=/opt/juvan-party-app/party.env
+ExecStart=/usr/bin/python3 /opt/juvan-party-app/server.py
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+Restart=always
+RestartSec=2
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/juvan-party-app/data /opt/juvan-party-app/uploads
+
+[Install]
+WantedBy=multi-user.target
