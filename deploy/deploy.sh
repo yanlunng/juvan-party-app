@@ -12,6 +12,18 @@
 #   2. cd juvan-party-app
 #   3. Run the command below.
 #
+# One-time setup: store your secrets in GCP Secret Manager so you never have
+# to re-type/paste them on future deploys:
+#   printf '%s' 'pick-a-real-password' | gcloud secrets create juvan-admin-password --data-file=-
+#   printf '%s' 'pick-a-real-password' | gcloud secrets create juvan-entry-password --data-file=-
+#   printf '%s' 'juvan-party.duckdns.org' | gcloud secrets create juvan-duckdns-domain --data-file=-
+#   printf '%s' 'your-duckdns-token' | gcloud secrets create juvan-duckdns-token --data-file=-
+# After that, every future deploy is just:
+#   export GCP_PROJECT_ID=my-project
+#   ./deploy/deploy.sh
+# (An env var of the same name always overrides the stored secret, useful for
+# testing a new value before committing it with `gcloud secrets versions add`.)
+#
 # Usage:
 #   export GCP_PROJECT_ID=my-project
 #   export ADMIN_PASSWORD='pick-a-real-password'
@@ -22,12 +34,13 @@
 # IP by also setting:
 #   DUCKDNS_DOMAIN=juvan-party.duckdns.org   # the subdomain you created
 #   DUCKDNS_TOKEN=...                        # your account token from duckdns.org
-# If either is unset, the DNS step is skipped and you just get the raw IP
-# over plain HTTP. If both are set, the script also installs Caddy as a
-# reverse proxy in front of the app, which automatically gets and renews a
-# free Let's Encrypt HTTPS certificate for that domain — no DuckDNS setting
-# gives you HTTPS by itself, a domain name and a TLS certificate are two
-# separate things, so this is the step that actually fixes "Not secure".
+# If neither an env var nor a stored secret is found for these two, the DNS
+# step is skipped and you just get the raw IP over plain HTTP. If both are
+# available, the script also installs Caddy as a reverse proxy in front of
+# the app, which automatically gets and renews a free Let's Encrypt HTTPS
+# certificate for that domain — no DuckDNS setting gives you HTTPS by
+# itself, a domain name and a TLS certificate are two separate things, so
+# this is the step that actually fixes "Not secure".
 #
 # Safe to re-run: it only creates the IP/firewall/VM if they don't already
 # exist, and re-running just pushes the latest server.py/public/ and
@@ -37,8 +50,6 @@
 set -euo pipefail
 
 PROJECT_ID="${GCP_PROJECT_ID:?Set GCP_PROJECT_ID to your GCP project id}"
-ADMIN_PASSWORD="${ADMIN_PASSWORD:?Set ADMIN_PASSWORD to the password for the admin panel}"
-ENTRY_PASSWORD="${ENTRY_PASSWORD:?Set ENTRY_PASSWORD to the password guests use to unlock Getting Here / entry QR code}"
 REGION="${REGION:-us-central1}"
 ZONE="${ZONE:-us-central1-a}"
 MACHINE_TYPE="${MACHINE_TYPE:-e2-small}"
@@ -53,8 +64,28 @@ APP_DIR="$(dirname "$SCRIPT_DIR")"
 echo "==> Using project: $PROJECT_ID"
 gcloud config set project "$PROJECT_ID" >/dev/null
 
-echo "==> Enabling Compute Engine API (no-op if already enabled)"
-gcloud services enable compute.googleapis.com
+echo "==> Enabling required APIs (no-op if already enabled)"
+gcloud services enable compute.googleapis.com secretmanager.googleapis.com
+
+get_secret() {
+  gcloud secrets versions access latest --secret="$1" --project="$PROJECT_ID" 2>/dev/null || true
+}
+
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-$(get_secret juvan-admin-password)}"
+ENTRY_PASSWORD="${ENTRY_PASSWORD:-$(get_secret juvan-entry-password)}"
+DUCKDNS_DOMAIN="${DUCKDNS_DOMAIN:-$(get_secret juvan-duckdns-domain)}"
+DUCKDNS_TOKEN="${DUCKDNS_TOKEN:-$(get_secret juvan-duckdns-token)}"
+
+if [[ -z "$ADMIN_PASSWORD" ]]; then
+  echo "No ADMIN_PASSWORD env var and no juvan-admin-password secret found. Either export ADMIN_PASSWORD, or run:" >&2
+  echo "  printf '%s' 'yourpassword' | gcloud secrets create juvan-admin-password --data-file=-" >&2
+  exit 1
+fi
+if [[ -z "$ENTRY_PASSWORD" ]]; then
+  echo "No ENTRY_PASSWORD env var and no juvan-entry-password secret found. Either export ENTRY_PASSWORD, or run:" >&2
+  echo "  printf '%s' 'yourpassword' | gcloud secrets create juvan-entry-password --data-file=-" >&2
+  exit 1
+fi
 
 echo "==> Reserving static external IP (idempotent)"
 if ! gcloud compute addresses describe "$STATIC_IP_NAME" --region "$REGION" &>/dev/null; then
