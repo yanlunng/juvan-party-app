@@ -15,6 +15,12 @@
 # Usage:
 #   GCP_PROJECT_ID=my-project ADMIN_PASSWORD='pick-a-real-password' ./deploy/deploy.sh
 #
+# Optional: point a free deSEC (desec.io) dynamic-DNS subdomain at the VM's
+# static IP by also setting:
+#   DESEC_DOMAIN=juvan-party.dedyn.io   # the dedyn.io subdomain you created
+#   DESEC_TOKEN=...                     # its dynDNS token from the deSEC dashboard
+# If either is unset, the DNS step is skipped and you just get the raw IP.
+#
 # Safe to re-run: it only creates the IP/firewall/VM if they don't already
 # exist, and re-running just pushes the latest server.py/public/ and
 # restarts the service. It never touches the VM's data/ or uploads/
@@ -47,6 +53,16 @@ if ! gcloud compute addresses describe "$STATIC_IP_NAME" --region "$REGION" &>/d
 fi
 STATIC_IP="$(gcloud compute addresses describe "$STATIC_IP_NAME" --region "$REGION" --format='get(address)')"
 echo "    Static IP: $STATIC_IP"
+
+if [[ -n "${DESEC_DOMAIN:-}" && -n "${DESEC_TOKEN:-}" ]]; then
+  echo "==> Updating deSEC dynamic DNS ($DESEC_DOMAIN -> $STATIC_IP)"
+  if ! curl -fsS --user "$DESEC_DOMAIN:$DESEC_TOKEN" "https://update.dedyn.io/?myipv4=$STATIC_IP"; then
+    echo "    Warning: deSEC update failed (check DESEC_DOMAIN/DESEC_TOKEN) — continuing without it."
+  fi
+  echo ""
+else
+  echo "==> Skipping deSEC DNS update (set DESEC_DOMAIN and DESEC_TOKEN to enable)"
+fi
 
 echo "==> Ensuring firewall rule for HTTP (tcp:80)"
 if ! gcloud compute firewall-rules describe "$FIREWALL_RULE" &>/dev/null; then
@@ -134,5 +150,11 @@ remote_ssh "
 "
 
 echo ""
-echo "==> Done. Party app should be live at: http://$STATIC_IP/"
-echo "    Admin panel: http://$STATIC_IP/admin.html"
+if [[ -n "${DESEC_DOMAIN:-}" ]]; then
+  echo "==> Done. Party app should be live at: http://$DESEC_DOMAIN/ (DNS may take a few minutes to propagate)"
+  echo "    Fallback direct IP: http://$STATIC_IP/"
+  echo "    Admin panel: http://$DESEC_DOMAIN/admin.html"
+else
+  echo "==> Done. Party app should be live at: http://$STATIC_IP/"
+  echo "    Admin panel: http://$STATIC_IP/admin.html"
+fi
