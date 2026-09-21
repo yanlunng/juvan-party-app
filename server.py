@@ -22,12 +22,14 @@ DATA_FILE = os.path.join(BASE_DIR, "data", "store.json")
 PORT = int(os.environ.get("PORT", "8090"))
 HOST = os.environ.get("HOST", "127.0.0.1")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "password")
+ENTRY_PASSWORD = os.environ.get("ENTRY_PASSWORD", "party")
 
 RACE_DURATION_MS = 10_000
 MAX_TAPS_PER_SEC = 12
 
 lock = threading.Lock()
 admin_tokens = set()
+entry_tokens = set()
 
 
 def load_store():
@@ -171,6 +173,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._post_admin_logout()
             if path == "/api/admin/reset":
                 return self._post_admin_reset()
+            if path == "/api/entry/login":
+                return self._post_entry_login()
+            if path == "/api/entry/verify":
+                return self._post_entry_verify()
         except ValueError as e:
             return self._send_error_json(str(e), 400)
         except Exception as e:
@@ -287,6 +293,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send_error_json("Unknown reset target", 400)
             save_store()
         self._send_json({"ok": True})
+
+    def _post_entry_login(self):
+        body = self._read_json_body()
+        if (body.get("password") or "") != ENTRY_PASSWORD:
+            return self._send_error_json("Incorrect password", 401)
+        token = new_id(24)
+        with lock:
+            entry_tokens.add(token)
+        self._send_json({"token": token})
+
+    def _post_entry_verify(self):
+        body = self._read_json_body()
+        ok = bool(body.get("token")) and body["token"] in entry_tokens
+        self._send_json({"ok": ok})
 
 
 def main():

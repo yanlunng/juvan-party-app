@@ -13,7 +13,10 @@
 #   3. Run the command below.
 #
 # Usage:
-#   GCP_PROJECT_ID=my-project ADMIN_PASSWORD='pick-a-real-password' ./deploy/deploy.sh
+#   export GCP_PROJECT_ID=my-project
+#   export ADMIN_PASSWORD='pick-a-real-password'
+#   export ENTRY_PASSWORD='pick-a-real-password'   # gates the Getting Here / entry QR page
+#   ./deploy/deploy.sh
 #
 # Optional: point a free DuckDNS (duckdns.org) subdomain at the VM's static
 # IP by also setting:
@@ -30,6 +33,7 @@ set -euo pipefail
 
 PROJECT_ID="${GCP_PROJECT_ID:?Set GCP_PROJECT_ID to your GCP project id}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:?Set ADMIN_PASSWORD to the password for the admin panel}"
+ENTRY_PASSWORD="${ENTRY_PASSWORD:?Set ENTRY_PASSWORD to the password guests use to unlock Getting Here / entry QR code}"
 REGION="${REGION:-us-central1}"
 ZONE="${ZONE:-us-central1-a}"
 MACHINE_TYPE="${MACHINE_TYPE:-e2-small}"
@@ -125,13 +129,14 @@ remote_ssh "
   sudo chown -R partyapp:partyapp /opt/juvan-party-app
 "
 
-echo "==> Writing environment file (contains the admin password, not committed to git)"
+echo "==> Writing environment file (contains the admin/entry passwords, not committed to git)"
 TMP_ENV="$(mktemp)"
 trap 'rm -f "$TMP_ENV"' EXIT
 cat > "$TMP_ENV" <<EOF
 HOST=0.0.0.0
 PORT=80
 ADMIN_PASSWORD=$ADMIN_PASSWORD
+ENTRY_PASSWORD=$ENTRY_PASSWORD
 EOF
 gcloud compute scp --zone "$ZONE" "$TMP_ENV" "$INSTANCE_NAME":/tmp/party.env
 remote_ssh "

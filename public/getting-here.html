@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Getting Here - Juvan's Birthday</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1 style="font-size:24px;">📍 Getting Here</h1>
+  <div class="subtitle">Enter the password we sent you</div>
+
+  <div class="card" id="loginCard">
+    <input type="password" id="password" placeholder="Password" autocomplete="off">
+    <button id="loginBtn">Unlock</button>
+    <div id="loginStatus" style="margin-top:10px; font-size:13px; color:#b04a4a;"></div>
+  </div>
+
+  <div id="infoCard" style="display:none;">
+    <div class="card">
+      <div style="font-weight:700; margin-bottom:8px;">🚗 Directions</div>
+      <div>PLACEHOLDER: address goes here</div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700; margin-bottom:8px;">🅿️ Parking</div>
+      <div>PLACEHOLDER: parking notes go here</div>
+    </div>
+
+    <div class="card" style="text-align:center;">
+      <div style="font-weight:700; margin-bottom:12px;">🚪 Scan to get in</div>
+      <img src="/img/entry-qr.png" alt="Entry QR code" style="max-width:100%; border-radius:12px;">
+      <div style="margin-top:10px; font-size:13px; color:#6B7A82;">PLACEHOLDER: entrance instructions go here</div>
+    </div>
+  </div>
+
+  <div class="subtitle" style="margin-top:24px;"><a href="/">&larr; Back to home</a></div>
+</div>
+
+<script>
+const loginCard = document.getElementById('loginCard');
+const infoCard = document.getElementById('infoCard');
+const loginStatus = document.getElementById('loginStatus');
+
+function getToken() { return sessionStorage.getItem('entryToken'); }
+function setToken(t) { sessionStorage.setItem('entryToken', t); }
+function clearToken() { sessionStorage.removeItem('entryToken'); }
+
+function showInfo() {
+  loginCard.style.display = 'none';
+  infoCard.style.display = 'block';
+}
+function showLogin() {
+  loginCard.style.display = 'block';
+  infoCard.style.display = 'none';
+}
+
+async function verifyToken() {
+  const token = getToken();
+  if (!token) return showLogin();
+  try {
+    const res = await fetch('/api/entry/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json();
+    if (data.ok) showInfo(); else { clearToken(); showLogin(); }
+  } catch (err) {
+    showLogin();
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const password = document.getElementById('password').value;
+  loginStatus.textContent = '';
+  try {
+    const res = await fetch('/api/entry/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await res.json();
+    if (!res.ok) { loginStatus.textContent = data.error || 'Incorrect password'; return; }
+    setToken(data.token);
+    showInfo();
+  } catch (err) {
+    loginStatus.textContent = 'Something went wrong, try again.';
+  }
+});
+
+verifyToken();
+</script>
+</body>
+</html>
