@@ -2,11 +2,11 @@
 # Deploy/update Juvan's party app on a Compute Engine VM.
 #
 # Run this from Google Cloud Shell (https://shell.cloud.google.com) — gcloud
-# is already installed and authenticated there, and this machine's corp
-# network blocks every Google domain outright (confirmed: google.com,
-# accounts.google.com, compute.googleapis.com, console.cloud.google.com all
-# 403 from here, even a plain curl), so a local gcloud install/login won't
-# work from here. In Cloud Shell:
+# is already installed and authenticated there, and this machine's local
+# network only allows a narrow set of domains outright (confirmed via curl:
+# most external hosts fail, including google.com and duckdns.org), so a
+# local gcloud install/login and DNS testing won't work from here. In Cloud
+# Shell:
 #   1. Upload this whole juvan-party-app/ folder (Cloud Shell Editor's
 #      upload button, or `git clone` if you push the repo somewhere first).
 #   2. cd juvan-party-app
@@ -15,10 +15,10 @@
 # Usage:
 #   GCP_PROJECT_ID=my-project ADMIN_PASSWORD='pick-a-real-password' ./deploy/deploy.sh
 #
-# Optional: point a free deSEC (desec.io) dynamic-DNS subdomain at the VM's
-# static IP by also setting:
-#   DESEC_DOMAIN=juvan-party.dedyn.io   # the dedyn.io subdomain you created
-#   DESEC_TOKEN=...                     # its dynDNS token from the deSEC dashboard
+# Optional: point a free DuckDNS (duckdns.org) subdomain at the VM's static
+# IP by also setting:
+#   DUCKDNS_DOMAIN=juvan-party.duckdns.org   # the subdomain you created
+#   DUCKDNS_TOKEN=...                        # your account token from duckdns.org
 # If either is unset, the DNS step is skipped and you just get the raw IP.
 #
 # Safe to re-run: it only creates the IP/firewall/VM if they don't already
@@ -54,14 +54,16 @@ fi
 STATIC_IP="$(gcloud compute addresses describe "$STATIC_IP_NAME" --region "$REGION" --format='get(address)')"
 echo "    Static IP: $STATIC_IP"
 
-if [[ -n "${DESEC_DOMAIN:-}" && -n "${DESEC_TOKEN:-}" ]]; then
-  echo "==> Updating deSEC dynamic DNS ($DESEC_DOMAIN -> $STATIC_IP)"
-  if ! curl -fsS --user "$DESEC_DOMAIN:$DESEC_TOKEN" "https://update.dedyn.io/?myipv4=$STATIC_IP"; then
-    echo "    Warning: deSEC update failed (check DESEC_DOMAIN/DESEC_TOKEN) — continuing without it."
+if [[ -n "${DUCKDNS_DOMAIN:-}" && -n "${DUCKDNS_TOKEN:-}" ]]; then
+  DUCKDNS_SUBDOMAIN="${DUCKDNS_DOMAIN%.duckdns.org}"
+  echo "==> Updating DuckDNS ($DUCKDNS_DOMAIN -> $STATIC_IP)"
+  DUCKDNS_RESPONSE="$(curl -fsS "https://www.duckdns.org/update?domains=$DUCKDNS_SUBDOMAIN&token=$DUCKDNS_TOKEN&ip=$STATIC_IP" || echo "ERROR")"
+  if [[ "$DUCKDNS_RESPONSE" != "OK" ]]; then
+    echo "    Warning: DuckDNS update returned '$DUCKDNS_RESPONSE' (expected OK) — check DUCKDNS_DOMAIN/DUCKDNS_TOKEN. Continuing without it."
   fi
   echo ""
 else
-  echo "==> Skipping deSEC DNS update (set DESEC_DOMAIN and DESEC_TOKEN to enable)"
+  echo "==> Skipping DuckDNS update (set DUCKDNS_DOMAIN and DUCKDNS_TOKEN to enable)"
 fi
 
 echo "==> Ensuring firewall rule for HTTP (tcp:80)"
@@ -150,10 +152,10 @@ remote_ssh "
 "
 
 echo ""
-if [[ -n "${DESEC_DOMAIN:-}" ]]; then
-  echo "==> Done. Party app should be live at: http://$DESEC_DOMAIN/ (DNS may take a few minutes to propagate)"
+if [[ -n "${DUCKDNS_DOMAIN:-}" ]]; then
+  echo "==> Done. Party app should be live at: http://$DUCKDNS_DOMAIN/ (DNS may take a few minutes to propagate)"
   echo "    Fallback direct IP: http://$STATIC_IP/"
-  echo "    Admin panel: http://$DESEC_DOMAIN/admin.html"
+  echo "    Admin panel: http://$DUCKDNS_DOMAIN/admin.html"
 else
   echo "==> Done. Party app should be live at: http://$STATIC_IP/"
   echo "    Admin panel: http://$STATIC_IP/admin.html"
