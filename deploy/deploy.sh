@@ -22,7 +22,12 @@
 # IP by also setting:
 #   DUCKDNS_DOMAIN=juvan-party.duckdns.org   # the subdomain you created
 #   DUCKDNS_TOKEN=...                        # your account token from duckdns.org
-# If either is unset, the DNS step is skipped and you just get the raw IP.
+# If either is unset, the DNS step is skipped and you just get the raw IP
+# over plain HTTP. If both are set, the script also installs Caddy as a
+# reverse proxy in front of the app, which automatically gets and renews a
+# free Let's Encrypt HTTPS certificate for that domain — no DuckDNS setting
+# gives you HTTPS by itself, a domain name and a TLS certificate are two
+# separate things, so this is the step that actually fixes "Not secure".
 #
 # Safe to re-run: it only creates the IP/firewall/VM if they don't already
 # exist, and re-running just pushes the latest server.py/public/ and
@@ -66,17 +71,21 @@ if [[ -n "${DUCKDNS_DOMAIN:-}" && -n "${DUCKDNS_TOKEN:-}" ]]; then
     echo "    Warning: DuckDNS update returned '$DUCKDNS_RESPONSE' (expected OK) — check DUCKDNS_DOMAIN/DUCKDNS_TOKEN. Continuing without it."
   fi
   echo ""
+  APP_PORT=8090
 else
   echo "==> Skipping DuckDNS update (set DUCKDNS_DOMAIN and DUCKDNS_TOKEN to enable)"
+  APP_PORT=80
 fi
 
-echo "==> Ensuring firewall rule for HTTP (tcp:80)"
+echo "==> Ensuring firewall rule for HTTP/HTTPS (tcp:80,443)"
 if ! gcloud compute firewall-rules describe "$FIREWALL_RULE" &>/dev/null; then
   gcloud compute firewall-rules create "$FIREWALL_RULE" \
-    --allow=tcp:80 \
+    --allow=tcp:80,tcp:443 \
     --target-tags="$TAG" \
     --direction=INGRESS \
-    --description="Allow HTTP to Juvan's party app"
+    --description="Allow HTTP/HTTPS to Juvan's party app"
+else
+  gcloud compute firewall-rules update "$FIREWALL_RULE" --allow=tcp:80,tcp:443
 fi
 
 echo "==> Ensuring VM exists"
@@ -134,7 +143,7 @@ TMP_ENV="$(mktemp)"
 trap 'rm -f "$TMP_ENV"' EXIT
 cat > "$TMP_ENV" <<EOF
 HOST=0.0.0.0
-PORT=80
+PORT=$APP_PORT
 ADMIN_PASSWORD=$ADMIN_PASSWORD
 ENTRY_PASSWORD=$ENTRY_PASSWORD
 EOF
@@ -158,9 +167,29 @@ remote_ssh "
 
 echo ""
 if [[ -n "${DUCKDNS_DOMAIN:-}" ]]; then
-  echo "==> Done. Party app should be live at: http://$DUCKDNS_DOMAIN/ (DNS may take a few minutes to propagate)"
-  echo "    Fallback direct IP: http://$STATIC_IP/"
-  echo "    Admin panel: http://$DUCKDNS_DOMAIN/admin.html"
+  echo "==> Installing Caddy for automatic HTTPS on $DUCKDNS_DOMAIN"
+  remote_ssh "
+    if ! command -v caddy >/dev/null 2>&1; then
+      sudo apt-get update -y
+      sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+      curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+      curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+      sudo apt-get update -y
+      sudo apt-get install -y caddy
+    fi
+    echo '$DUCKDNS_DOMAIN {
+      reverse_proxy localhost:$APP_PORT
+    }' | sudo tee /etc/caddy/Caddyfile > /dev/null
+    sudo systemctl enable caddy
+    sudo systemctl restart caddy
+  "
+fi
+
+echo ""
+if [[ -n "${DUCKDNS_DOMAIN:-}" ]]; then
+  echo "==> Done. Party app should be live at: https://$DUCKDNS_DOMAIN/ (DNS + first-time cert issuance can take a few minutes)"
+  echo "    Admin panel: https://$DUCKDNS_DOMAIN/admin.html"
+  echo "    Note: Caddy only answers to $DUCKDNS_DOMAIN — the bare IP ($STATIC_IP) won't serve the app anymore."
 else
   echo "==> Done. Party app should be live at: http://$STATIC_IP/"
   echo "    Admin panel: http://$STATIC_IP/admin.html"
