@@ -21,7 +21,7 @@ UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
 DATA_FILE = os.path.join(BASE_DIR, "data", "store.json")
 PORT = int(os.environ.get("PORT", "8090"))
 HOST = os.environ.get("HOST", "127.0.0.1")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "1234567w")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "password")
 
 RACE_DURATION_MS = 10_000
 MAX_TAPS_PER_SEC = 12
