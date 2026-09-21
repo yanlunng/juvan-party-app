@@ -9,56 +9,57 @@
 <body>
 <div class="wrap">
   <h1 style="font-size:24px;">📍 Getting Here</h1>
-  <div class="subtitle">Enter the password we sent you</div>
+  <div class="subtitle">Everything you need to find us</div>
 
-  <div class="card" id="loginCard">
-    <input type="password" id="password" placeholder="Password" autocomplete="off">
-    <button id="loginBtn">Unlock</button>
-    <div id="loginStatus" style="margin-top:10px; font-size:13px; color:#b04a4a;"></div>
+  <div class="card">
+    <div style="font-weight:700; margin-bottom:8px;">📍 Venue</div>
+    <div>Casa Merah Function Room</div>
+    <div style="margin-top:10px; font-size:13px; color:#6B7A82;">There are two ways to get here: by public transport, or by driving in.</div>
+    <a href="#entry-qr" class="btn gold" style="margin-top:14px; display:block;">🚪 Jump to Entry QR Code</a>
   </div>
 
-  <div id="infoCard" style="display:none;">
-    <div class="card">
-      <div style="font-weight:700; margin-bottom:8px;">📍 Venue</div>
-      <div>Casa Merah Function Room</div>
-      <div style="margin-top:10px; font-size:13px; color:#6B7A82;">There are two ways to get here: by public transport, or by driving in.</div>
-      <a href="#entry-qr" class="btn gold" style="margin-top:14px; display:block;">🚪 Jump to Entry QR Code</a>
+  <div class="card">
+    <div style="font-weight:700; margin-bottom:8px;">🚌 Public Transport</div>
+    <div><strong>MRT:</strong> Tanah Merah MRT Station (EW4), Exit 2</div>
+    <div style="margin-top:8px;"><strong>Bus stop:</strong> Tanah Merah Stn Exit 2 (right outside the MRT exit) — served by buses 2, 9, 9A, 12, 12e, 14, 14A, 24, 31, 35, 35M, 38, 45, 47, 48</div>
+    <div style="margin-top:10px; font-size:13px; color:#6B7A82;">From here you can walk in via the Front Gate or the Back Gate — see below.</div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700; margin-bottom:8px;">🚗🚶 Front Gate (Driving or Walking In)</div>
+    <div>Tell the guard at the gate you're here for the <strong>Function Room</strong>. If asked whose guest you are, it's <strong>Block 66, #09-30</strong>.</div>
+    <div style="margin-top:10px;">If driving, park at <strong>B2</strong> — go down past B1, and take the first white (visitor) lots you see. Park as close to the stairs as you can.</div>
+    <img src="/img/parking-stairs.jpg" alt="B2 parking lots near the staircase" style="max-width:100%; border-radius:12px; margin-top:12px;">
+    <div style="margin-top:10px;">Whether you drove in or walked in via the front gate, go up the staircase — you'll reach a drop-off point with 2 vending machines.</div>
+    <img src="/img/walk-dropoff-vending.jpg" alt="Drop-off point with vending machines at the top of the staircase" style="max-width:100%; border-radius:12px; margin-top:12px;">
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700; margin-bottom:8px;">🚪 Back Gate Route</div>
+    <div style="font-size:13px; color:#b08a2e;">Photos coming soon — text directions below.</div>
+    <div style="margin-top:10px;">From Tanah Merah MRT Exit 2 / the bus stop, go through Sceneca and walk past Ya Kun. Cross the zebra crossing — the back gate will be on your right.</div>
+    <div style="margin-top:10px;">Scan the <a href="#entry-qr">entry QR code</a> to open the back gate, then go up the staircase on the left — it leads to the gym. Walk past the gym and you'll see the Function Room.</div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700; margin-bottom:8px;">🏊 From the Drop-off Point (Front Gate)</div>
+    <div style="font-size:13px; color:#6B7A82; margin-bottom:10px;">This continues the Front Gate route above.</div>
+    <div>Walk towards the swimming pool — the Function Room is at the end of the pool.</div>
+    <img src="/img/pool-function-room.jpg" alt="Swimming pool with the Function Room at the far end" style="max-width:100%; border-radius:12px; margin-top:12px;">
+    <div style="margin-top:10px;">Keep walking to the end of the pool — the Function Room is the pitch-black room shown below.</div>
+    <img src="/img/function-room-arrow.jpg" alt="Arrow pointing to the Function Room's dark glass front" style="max-width:100%; border-radius:12px; margin-top:12px;">
+  </div>
+
+  <div class="card" id="entry-qr" style="text-align:center;">
+    <div style="font-weight:700; margin-bottom:12px;">🚪 Scan to get in</div>
+
+    <div id="qrLocked">
+      <input type="password" id="qrPassword" placeholder="Password" autocomplete="off">
+      <button id="qrUnlockBtn">Unlock QR Code</button>
+      <div id="qrStatus" style="margin-top:10px; font-size:13px; color:#b04a4a;"></div>
     </div>
 
-    <div class="card">
-      <div style="font-weight:700; margin-bottom:8px;">🚌 Public Transport</div>
-      <div><strong>MRT:</strong> Tanah Merah MRT Station (EW4), Exit 2</div>
-      <div style="margin-top:8px;"><strong>Bus stop:</strong> Tanah Merah Stn Exit 2 (right outside the MRT exit) — served by buses 2, 9, 9A, 12, 12e, 14, 14A, 24, 31, 35, 35M, 38, 45, 47, 48</div>
-      <div style="margin-top:10px; font-size:13px; color:#6B7A82;">You can walk in via the front gate (see Driving In below, from the vending machines onwards) or the back gate.</div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700; margin-bottom:8px;">🚪 Back Gate Route</div>
-      <div style="font-size:13px; color:#b08a2e;">Photos coming soon — text directions below.</div>
-      <div style="margin-top:10px;">From Tanah Merah MRT Exit 2 / the bus stop, go through Sceneca and walk past Ya Kun. Cross the zebra crossing — the back gate will be on your right.</div>
-      <div style="margin-top:10px;">Scan the <a href="#entry-qr">entry QR code</a> to open the back gate, then go up the staircase on the left — it leads to the gym. Walk past the gym and you'll see the Function Room.</div>
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700; margin-bottom:8px;">🚗 Driving In</div>
-      <div>Tell the guard at the gate you're visiting <strong>Block 66, #09-30</strong> to get let in.</div>
-      <div style="margin-top:10px;">Park at <strong>B2</strong> — go down past B1, and take the first white (visitor) lots you see. Park as close to the stairs as you can.</div>
-      <img src="/img/parking-stairs.jpg" alt="B2 parking lots near the staircase" style="max-width:100%; border-radius:12px; margin-top:12px;">
-      <div style="margin-top:10px;">Go up the staircase — you'll reach a drop-off point with 2 vending machines.</div>
-      <img src="/img/walk-dropoff-vending.jpg" alt="Drop-off point with vending machines at the top of the staircase" style="max-width:100%; border-radius:12px; margin-top:12px;">
-    </div>
-
-    <div class="card">
-      <div style="font-weight:700; margin-bottom:8px;">🏊 From the Drop-off Point</div>
-      <div style="font-size:13px; color:#6B7A82; margin-bottom:10px;">Whether you drove in or walked in via the front gate, the directions are the same from here.</div>
-      <div>Walk towards the swimming pool — the Function Room is at the end of the pool.</div>
-      <img src="/img/pool-function-room.jpg" alt="Swimming pool with the Function Room at the far end" style="max-width:100%; border-radius:12px; margin-top:12px;">
-      <div style="margin-top:10px;">Keep walking to the end of the pool — the Function Room is the pitch-black room shown below.</div>
-      <img src="/img/function-room-arrow.jpg" alt="Arrow pointing to the Function Room's dark glass front" style="max-width:100%; border-radius:12px; margin-top:12px;">
-    </div>
-
-    <div class="card" id="entry-qr" style="text-align:center;">
-      <div style="font-weight:700; margin-bottom:12px;">🚪 Scan to get in</div>
+    <div id="qrUnlocked" style="display:none;">
       <img src="/img/entry-qr.png" alt="Entry QR code" style="max-width:100%; border-radius:12px;">
       <div style="margin-top:10px; font-size:13px; color:#6B7A82;">Show this QR code if you're asked to scan in at the entrance — same QR whether you come through the front or back gate.</div>
     </div>
@@ -68,26 +69,26 @@
 </div>
 
 <script>
-const loginCard = document.getElementById('loginCard');
-const infoCard = document.getElementById('infoCard');
-const loginStatus = document.getElementById('loginStatus');
+const qrLocked = document.getElementById('qrLocked');
+const qrUnlocked = document.getElementById('qrUnlocked');
+const qrStatus = document.getElementById('qrStatus');
 
 function getToken() { return sessionStorage.getItem('entryToken'); }
 function setToken(t) { sessionStorage.setItem('entryToken', t); }
 function clearToken() { sessionStorage.removeItem('entryToken'); }
 
-function showInfo() {
-  loginCard.style.display = 'none';
-  infoCard.style.display = 'block';
+function showQrUnlocked() {
+  qrLocked.style.display = 'none';
+  qrUnlocked.style.display = 'block';
 }
-function showLogin() {
-  loginCard.style.display = 'block';
-  infoCard.style.display = 'none';
+function showQrLocked() {
+  qrLocked.style.display = 'block';
+  qrUnlocked.style.display = 'none';
 }
 
 async function verifyToken() {
   const token = getToken();
-  if (!token) return showLogin();
+  if (!token) return showQrLocked();
   try {
     const res = await fetch('/api/entry/verify', {
       method: 'POST',
@@ -95,15 +96,15 @@ async function verifyToken() {
       body: JSON.stringify({ token }),
     });
     const data = await res.json();
-    if (data.ok) showInfo(); else { clearToken(); showLogin(); }
+    if (data.ok) showQrUnlocked(); else { clearToken(); showQrLocked(); }
   } catch (err) {
-    showLogin();
+    showQrLocked();
   }
 }
 
-document.getElementById('loginBtn').addEventListener('click', async () => {
-  const password = document.getElementById('password').value;
-  loginStatus.textContent = '';
+document.getElementById('qrUnlockBtn').addEventListener('click', async () => {
+  const password = document.getElementById('qrPassword').value;
+  qrStatus.textContent = '';
   try {
     const res = await fetch('/api/entry/login', {
       method: 'POST',
@@ -111,11 +112,11 @@ document.getElementById('loginBtn').addEventListener('click', async () => {
       body: JSON.stringify({ password }),
     });
     const data = await res.json();
-    if (!res.ok) { loginStatus.textContent = data.error || 'Incorrect password'; return; }
+    if (!res.ok) { qrStatus.textContent = data.error || 'Incorrect password'; return; }
     setToken(data.token);
-    showInfo();
+    showQrUnlocked();
   } catch (err) {
-    loginStatus.textContent = 'Something went wrong, try again.';
+    qrStatus.textContent = 'Something went wrong, try again.';
   }
 });
 
