@@ -86,7 +86,7 @@ button, .btn {
 
 button:active { transform: scale(0.98); }
 
-button.secondary {
+button.secondary, .btn.secondary {
   background: var(--beige);
 }
 
