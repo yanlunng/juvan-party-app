@@ -140,6 +140,11 @@
   </div>
 
   <div class="sidebar">
+    <div class="board-section" style="text-align:center;">
+      <h2>📱 Join In!</h2>
+      <img id="joinQr" alt="QR code to the party website" style="width:100%; max-width:220px; border-radius:12px; background:#fff; padding:8px; border:2px solid var(--pastel-blue-deep);">
+      <div style="font-size:13px; color:#6B7A82; margin-top:6px;">Scan to sign the guestbook &amp; play games</div>
+    </div>
     <div class="board-section">
       <h2>🏁 Race Leaderboard</h2>
       <div id="raceBoard"></div>
@@ -302,6 +307,13 @@ async function pollBoards() {
     renderRaceBoard(await raceRes.json());
     renderFlappyBoard(await flapRes.json());
   } catch (err) { /* ignore transient errors */ }
+}
+
+// ---------- sidebar: join QR code ----------
+const joinQrImg = document.getElementById('joinQr');
+if (joinQrImg) {
+  const target = encodeURIComponent(location.origin + '/');
+  joinQrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${target}`;
 }
 
 pollFeed();
