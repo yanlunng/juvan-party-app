@@ -176,6 +176,17 @@ let pageIndex = 0;
 let lastSignature = null;
 const wallEl = document.getElementById('postitWall');
 
+// Off-screen clone used to measure how many notes fit per page, so
+// measuring never overwrites what's actually on screen (see buildPages).
+const measureEl = document.createElement('div');
+measureEl.className = 'postit-wall';
+measureEl.style.position = 'absolute';
+measureEl.style.visibility = 'hidden';
+measureEl.style.pointerEvents = 'none';
+measureEl.style.top = '0';
+measureEl.style.left = '-9999px';
+document.body.appendChild(measureEl);
+
 function hashId(id) {
   let h = 0;
   for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
@@ -209,11 +220,12 @@ function renderNote(item) {
 function buildPages(items) {
   if (!items.length) return [[]];
   const limit = wallEl.clientHeight;
+  measureEl.style.width = wallEl.clientWidth + 'px';
   const built = [];
   let remaining = items.slice();
   while (remaining.length) {
-    wallEl.innerHTML = remaining.map(renderNote).join('');
-    const children = Array.from(wallEl.children);
+    measureEl.innerHTML = remaining.map(renderNote).join('');
+    const children = Array.from(measureEl.children);
     let cutoff = children.length;
     for (let i = 0; i < children.length; i++) {
       if (children[i].offsetTop + children[i].offsetHeight > limit + 2) { cutoff = i; break; }
