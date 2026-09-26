@@ -101,7 +101,11 @@ function onTap() {
   carEl.style.left = (6 + progress * trackWidth()) + 'px';
 }
 
-tapBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); onTap(); });
+tapBtn.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  if (!e.isPrimary) return; // ignore extra fingers tapping at the same time
+  onTap();
+});
 
 async function finishRace() {
   gameBox.style.display = 'none';

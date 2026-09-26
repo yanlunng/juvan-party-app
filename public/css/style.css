@@ -211,6 +211,7 @@ button.gold { background: var(--gold); color: #3a2c0f; }
   background: var(--pink);
   user-select: none;
   -webkit-user-select: none;
+  touch-action: none;
 }
 .timer {
   text-align: center;

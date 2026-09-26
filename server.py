@@ -25,7 +25,6 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "password")
 ENTRY_PASSWORD = os.environ.get("ENTRY_PASSWORD", "party")
 
 RACE_DURATION_MS = 10_000
-MAX_TAPS_PER_SEC = 12
 
 lock = threading.Lock()
 admin_tokens = set()
@@ -224,12 +223,11 @@ class Handler(BaseHTTPRequestHandler):
         tap_count = max(0, int(taps)) if isinstance(taps, (int, float)) else 0
         min_elapsed = RACE_DURATION_MS - 500
         max_elapsed = RACE_DURATION_MS + 4000
-        max_plausible_taps = int((RACE_DURATION_MS / 1000) * MAX_TAPS_PER_SEC) + 1
 
         if elapsed < min_elapsed or elapsed > max_elapsed:
             return self._send_error_json("Race timing invalid", 400)
 
-        final_taps = min(tap_count, max_plausible_taps)
+        final_taps = tap_count
         entry = {"id": new_id(), "name": (name or "Racer").strip()[:30] or "Racer",
                   "taps": final_taps, "ts": now_ms()}
         with lock:
