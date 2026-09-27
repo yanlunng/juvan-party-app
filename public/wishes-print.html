@@ -58,27 +58,42 @@ function escapeHtml(s) {
 
 document.getElementById('exportedAt').textContent = 'Exported ' + new Date().toLocaleString();
 
-document.getElementById('printBtn').addEventListener('click', () => window.print());
+let cachedEntries = [];
+
+function renderEntries() {
+  const container = document.getElementById('entries');
+  if (!cachedEntries.length) {
+    container.innerHTML = '<div class="empty-msg">No wishes yet.</div>';
+    return;
+  }
+  container.innerHTML = cachedEntries.map(e => `
+    <div class="wish-entry">
+      <div class="name">${escapeHtml(e.name)}</div>
+      <div class="time">${new Date(e.ts).toLocaleString()}</div>
+      <div class="msg">${escapeHtml(e.message)}</div>
+      ${e.photoUrl ? `<img src="${e.photoUrl}">` : ''}
+    </div>
+  `).join('');
+}
+
+document.getElementById('printBtn').addEventListener('click', () => {
+  // Force a fresh render right before printing — some browsers print a
+  // stale/blank snapshot of content that was injected asynchronously
+  // long before the print button was clicked, even though it looks fine
+  // on screen. Re-rendering now, then waiting a frame, avoids that.
+  renderEntries();
+  requestAnimationFrame(() => window.print());
+});
 
 async function load() {
   const container = document.getElementById('entries');
   try {
     const res = await fetch('/api/guestbook');
     const entries = await res.json();
-    if (!entries.length) {
-      container.innerHTML = '<div class="empty-msg">No wishes yet.</div>';
-      return;
-    }
     // oldest first, reads like a timeline
     entries.sort((a, b) => a.ts - b.ts);
-    container.innerHTML = entries.map(e => `
-      <div class="wish-entry">
-        <div class="name">${escapeHtml(e.name)}</div>
-        <div class="time">${new Date(e.ts).toLocaleString()}</div>
-        <div class="msg">${escapeHtml(e.message)}</div>
-        ${e.photoUrl ? `<img src="${e.photoUrl}">` : ''}
-      </div>
-    `).join('');
+    cachedEntries = entries;
+    renderEntries();
   } catch (err) {
     container.innerHTML = '<div class="empty-msg">Failed to load wishes.</div>';
   }
